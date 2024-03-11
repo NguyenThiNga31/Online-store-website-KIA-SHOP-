@@ -6,24 +6,34 @@ package dao;
 
 import context.DBContext;
 import entity.Account;
+import entity.Category;
+import entity.Product;
+import entity.SizeDetail;
+import entity.SubImage;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
 
 /**
  *
  * @author MSI GTX
  */
 public class DAO {
-      Connection conn = null;
+
+    Connection conn = null;
     PreparedStatement ps = null;
     ResultSet rs = null;
+
     //----------------------------------------------Phúc----------------------------------------
-     public String encryptToMD5(String password) {
+    public String encryptToMD5(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] messageDigest = md.digest(password.getBytes());
@@ -186,7 +196,8 @@ public class DAO {
         } catch (Exception e) {
         }
     }
-      // xóa tài khoản khỏi databases
+    // xóa tài khoản khỏi databases
+
     public int DeleteAccount(String email) throws Exception {
         String query = "delete from Account where email=?";
         int result = 0;
@@ -199,7 +210,8 @@ public class DAO {
         }
         return result;
     }
-     public void updateViewed() {//edit param
+
+    public void updateViewed() {//edit param
         //edit query (my_table), number of param
         String query = "update [View]\n"
                 + "set viewed = viewed + 1";
@@ -211,12 +223,12 @@ public class DAO {
         }
     }
     //------------------------------------------------------------------------------------------------
-    
-    
-       public static void main(String[] args) {
+
+    public static void main(String[] args) {
         DAO dao = new DAO();
     }
- //----------------huy---------
+    //----------------huy---------
+
     public void updateProfile(Account a) {
         String query = "update Account\n"
                 + "set fullname = ?, email = ?, phone = ?, address= ? where uID = ?";
@@ -269,5 +281,194 @@ public class DAO {
             ps.executeUpdate();
         } catch (Exception e) {
         }
+    }
+
+    //----------------Nga-----------------------------
+    // hiện tất cả sản phẩm có isdelete bằng 0
+    public List<Product> getAllProduct() {
+        List<Product> list = new ArrayList<>();
+        String query = "select * from Product where isDeleted != 1";
+        DAO dao = new DAO();
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);//nem cau lenh query sang sql
+            rs = ps.executeQuery();//chay cau lenh query, nhan ket qua tra ve
+            while (rs.next()) {
+                list.add(new Product(rs.getInt(1),
+                        rs.getString(2),
+                        rs.getString(3),
+                        rs.getDouble(4),
+                        rs.getString(5),
+                        rs.getString(6),
+                        rs.getInt(7), dao.getAllSubImageByPID(rs.getInt(1) + ""), dao.getAllSizeByID(rs.getInt(1) + ""), rs.getInt(8), rs.getInt(9)));
+            }
+
+        } catch (Exception e) {
+        }
+        return list;
+    }
+
+    // Hiện tất cả sản phẩm theo danh mục
+    public List<Category> getAllCategory() {
+        List<Category> list = new ArrayList<>();
+        String query = "select * from Category";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);//nem cau lenh query sang sql
+            rs = ps.executeQuery();//chay cau lenh query, nhan ket qua tra ve
+            while (rs.next()) {
+                list.add(new Category(rs.getInt(1), rs.getString(2)));
+            }
+
+        } catch (Exception e) {
+        }
+        return list;
+    }
+
+    //Tim kiem san pham 
+    public List<Product> search(String txtSearch, String cID) {
+        List<Product> list = new ArrayList<>();
+        String query = "SELECT * FROM Product WHERE isDeleted != 1";
+
+        if (cID != null && !cID.trim().equals("")) {
+            query += " AND cID = ?";
+        }
+
+        if (txtSearch != null && !txtSearch.trim().equals("")) {
+            query += " AND pName LIKE ?";
+        }
+
+        try {
+            DAO dao = new DAO();
+            conn = new DBContext().getConnection();
+            ps = conn.prepareStatement(query);
+
+            int paramIndex = 1;
+
+            if (cID != null && !cID.trim().equals("")) {
+                ps.setInt(paramIndex++, Integer.parseInt(cID));
+            }
+
+            if (txtSearch != null && !txtSearch.trim().equals("")) {
+                ps.setString(paramIndex++, "%" + txtSearch + "%");
+            }
+
+            rs = ps.executeQuery();
+
+            while (rs.next()) {
+                list.add(new Product(rs.getInt(1),
+                        rs.getString(2),
+                        rs.getString(3),
+                        rs.getDouble(4),
+                        rs.getString(5),
+                        rs.getString(6),
+                        rs.getInt(7), dao.getAllSubImageByPID(rs.getInt(1) + ""), dao.getAllSizeByID(rs.getInt(1) + ""), rs.getInt(8), rs.getInt(9)));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public List<Product> searchByName(String txtSearch) {
+        List<Product> list = new ArrayList<>();
+        String query = "select * from Product where pName like ?";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);//nem cau lenh query sang sql
+            ps.setString(1, "%" + txtSearch + "%");
+            rs = ps.executeQuery();//chay cau lenh query, nhan ket qua tra ve
+            DAO dao = new DAO();
+            while (rs.next()) {
+                list.add(new Product(rs.getInt(1),
+                        rs.getString(2),
+                        rs.getString(3),
+                        rs.getDouble(4),
+                        rs.getString(5),
+                        rs.getString(6),
+                        rs.getInt(7), dao.getAllSubImageByPID(rs.getInt(1) + ""), dao.getAllSizeByID(rs.getInt(1) + ""), rs.getInt(8), rs.getInt(9)));
+            }
+
+        } catch (Exception e) {
+        }
+        return list;
+    }
+
+    // lấy hình ảnh bằng ID sản phẩm
+    public List<SubImage> getAllSubImageByPID(String cid) {
+        List<SubImage> list = new ArrayList<>();
+        String query = "select S.*\n"
+                + "from Product P, SubImage S\n"
+                + "where P.pID = S.pID and S.pID = ?";
+        try {
+            conn = new DBContext().getConnection();
+            ps = conn.prepareStatement(query);
+            ps.setString(1, cid);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                list.add(new SubImage(rs.getInt(1), rs.getInt(2), rs.getString(3)));
+            }
+        } catch (Exception e) {
+        }
+        return list;
+    }
+
+    //lấy size bằng ID sản phẩm
+    public List<SizeDetail> getAllSizeByID(String id) {
+        List<SizeDetail> list = new ArrayList<>();
+        String query = "SELECT *"
+                + "FROM SizeDetail SD\n"
+                + "JOIN Size S ON SD.sizeID = S.sizeID\n"
+                + "WHERE SD.pID = ?";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);//nem cau lenh query sang sql
+            ps.setString(1, id);
+            rs = ps.executeQuery();//chay cau lenh query, nhan ket qua tra ve
+            while (rs.next()) {
+                list.add(new SizeDetail(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4)));
+            }
+        } catch (Exception e) {
+        }
+        return list;
+    }
+//Sắp xếp sản phẩm hàng A-Z
+
+    public List<Product> getProductSortedByNameAZ() {
+        List<Product> products = getAllProduct();
+        Collections.sort(products, Comparator.comparing(Product::getName));
+        return products;
+    }
+
+    //Sắp xếp sản phẩm hàng Z-A
+    public List<Product> getProductSortedByNameZA() {
+        List<Product> products = getAllProduct();
+        Collections.sort(products, Comparator.comparing(Product::getName).reversed());
+        return products;
+    }
+
+    // Phương thức để sắp xếp danh sách sản phẩm theo giá tăng dần
+    public List<Product> getProductSortedByPriceAscending() {
+        List<Product> products = getAllProduct();
+        // Sử dụng phương thức sort của lớp Collections và truyền vào một Comparator
+        Collections.sort(products, Comparator.comparing(Product::getPrice));
+        return products;
+    }
+
+    // Phương thức để sắp xếp danh sách sản phẩm theo giá giảm dần
+    public List<Product> getProductSortedByPriceDescending() {
+        List<Product> products = getAllProduct();
+        // Sử dụng phương thức sort của lớp Collections và truyền vào một Comparator
+        Collections.sort(products, Comparator.comparing(Product::getPrice).reversed());
+        return products;
+    }
+
+    // Phương thức để sắp xếp danh sách sản phẩm theo giá giảm dần
+    public List<Product> getProductSortedByNewestProduct() {
+        List<Product> products = getAllProduct();
+        // Sử dụng phương thức sort của lớp Collections và truyền vào một Comparator
+        Collections.sort(products, Comparator.comparing(Product::getId).reversed());
+        return products;
     }
 }
