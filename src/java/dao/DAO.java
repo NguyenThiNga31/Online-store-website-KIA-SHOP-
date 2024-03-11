@@ -8,6 +8,7 @@ import context.DBContext;
 import entity.Account;
 import entity.CartItem;
 import entity.Category;
+import entity.OrderDetails;
 import entity.Product;
 import entity.SizeDetail;
 import entity.SubImage;
@@ -653,6 +654,41 @@ public class DAO {
             e.printStackTrace();
         }
         return -1; // Trả về -1 nếu không tìm thấy sizeID cho sizevalue đã cho
+    }
+
+    public int getNumberItemsSolid() {
+        int n = 0;
+        String query = "select SUM(Quantity) from OrderDetails";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);//nem cau lenh query sang sql
+            rs = ps.executeQuery();//chay cau lenh query, nhan ket qua tra ve
+            if (rs.next()) {
+                n = rs.getInt(1);
+            }
+        } catch (Exception e) {
+        }
+        return n;
+    }
+
+    public double getTotalEarnings() {
+        double total = 0;
+        List<OrderDetails> list = new ArrayList<>();
+        String query = "select * from OrderDetails";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);//nem cau lenh query sang sql
+            rs = ps.executeQuery();//chay cau lenh query, nhan ket qua tra ve
+            while (rs.next()) {
+                list.add(new OrderDetails(rs.getInt(1), rs.getInt(2), rs.getDouble(3), rs.getInt(4)));
+            }
+
+        } catch (Exception e) {
+        }
+        for (OrderDetails o : list) {
+            total += o.getPrice() * o.getQuantity();
+        }
+        return total;
     }
 
     //------------------------------------------------------------------------------------------------
