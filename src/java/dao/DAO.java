@@ -6,6 +6,7 @@ package dao;
 
 import context.DBContext;
 import entity.Account;
+import entity.CartItem;
 import entity.Category;
 import entity.Product;
 import entity.SizeDetail;
@@ -296,6 +297,7 @@ public class DAO {
         }
         return list;
     }
+
     public List<Product> paginateList(List<Product> productList, int pageIndex, int numberProductPerPage) {
         int start = (pageIndex - 1) * numberProductPerPage;
         int end = Math.min(start + numberProductPerPage, productList.size());
@@ -310,6 +312,7 @@ public class DAO {
         }
         return pageSize;
     }
+
     public List<Product> getProductByPrice(double minprice, double maxprice) {
         List<Product> list = new ArrayList<>();
         String query = "select *\n"
@@ -336,6 +339,7 @@ public class DAO {
         }
         return list;
     }
+
     public List<Product> getProductByPricecatogy(double minprice, double maxprice, String cID) {
         List<Product> list = new ArrayList<>();
         String query = "select *\n"
@@ -362,6 +366,198 @@ public class DAO {
         } catch (Exception e) {
         }
         return list;
+    }
+
+    //code giỏ hàng đang làm
+    public void addCart(int productID, int accountID, int sizeID) {
+        String query = "INSERT INTO [Cart](productID, accountID, sizeID, quantity) VALUES (?, ?, ?, 1)";
+
+        try {
+            conn = new DBContext().getConnection();
+            ps = conn.prepareStatement(query);
+            // Set parameters for both UPDATE and INSERT
+            ps.setInt(1, productID);
+            ps.setInt(2, accountID);
+            ps.setInt(3, sizeID);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            // Handle exceptions appropriately
+        }
+    }
+
+    public List<CartItem> getAllCart(int accountID) {
+        List<CartItem> list = new ArrayList<>();
+        String query = "SELECT c.[productID], c.[accountID], c.[sizeID], c.[quantity], \n"
+                + "            p.[image], p.[price], p.[pName], s.[sizeValue] \n"
+                + "            FROM [Project_KiAShop].[dbo].[Cart] c \n"
+                + "            JOIN [Project_KiAShop].[dbo].[Product] p ON c.[productID] = p.[pID] \n"
+                + "            JOIN [Project_KiAShop].[dbo].[Size] s ON c.[sizeID] = s.[sizeID] \n"
+                + "            WHERE c.[accountID] = ?";
+        try {
+            conn = new DBContext().getConnection();
+            ps = conn.prepareStatement(query);
+            ps.setInt(1, accountID);
+            rs = ps.executeQuery();
+            DAO dao = new DAO();
+            while (rs.next()) {
+                CartItem cartItem = new CartItem(
+                        rs.getInt("productID"),
+                        rs.getInt("accountID"),
+                        rs.getInt("sizeID"),
+                        rs.getInt("quantity"),
+                        rs.getString("image"),
+                        rs.getDouble("price"),
+                        rs.getString("pName"),
+                        rs.getInt("sizeValue"));  // Assuming you don't have the size information here
+                list.add(cartItem); // Add the created CartItem to the lis
+            }
+        } catch (Exception e) {
+            // Xử lý ngoại lệ
+        }
+        return list;
+    }
+
+    public Boolean checkcartExist(int productID, int accountID, int sizeID) {
+        String query = "SELECT *  FROM [Cart] WHERE productID = ? AND accountID = ? AND sizeID = ? ";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);//nem cau lenh query sang sql
+            ps.setInt(1, productID);
+            ps.setInt(2, accountID);
+            ps.setInt(3, sizeID);
+            rs = ps.executeQuery();
+
+            // Check if the result set has any rows
+            return rs.next();
+        } catch (Exception e) {
+        }
+        return false;
+    }
+
+    public void updateaddCart(int productID, int accountID, int sizeID) {
+        String query = "Update [Cart] set quantity = quantity +1 WHERE productID = ? AND accountID = ? AND sizeID = ?";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);
+            ps.setInt(1, productID);
+            ps.setInt(2, accountID);
+            ps.setInt(3, sizeID);
+            ps.executeUpdate();
+
+        } catch (Exception ex) {
+        }
+    }
+
+    public void deleteCart(int productID, int accountID, int sizeID) {
+        String query = "DELETE FROM Cart WHERE productID = ? AND accountID = ? AND sizeID = ?";
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);
+            ps.setInt(1, productID);
+            ps.setInt(2, accountID);
+            ps.setInt(3, sizeID);
+            ps.executeUpdate();
+
+        } catch (Exception ex) {
+        }
+    }
+
+    public void updateminusCart(int productID, int accountID, int sizeID) {
+        String updateQuery = "UPDATE Cart SET quantity = quantity - 1 WHERE productID = ? AND accountID = ? AND sizeID = ?";
+        String deleteQuery = "DELETE FROM Cart WHERE productID = ? AND accountID = ? AND sizeID = ?";
+
+        try {
+            conn = new DBContext().getConnection(); // Open connection to SQL
+            conn.setAutoCommit(false); // Disable auto-commit for transaction
+
+            // Update quantity
+            ps = conn.prepareStatement(updateQuery);
+            ps.setInt(1, productID);
+            ps.setInt(2, accountID);
+            ps.setInt(3, sizeID);
+            int updatedRows = ps.executeUpdate();
+
+            // Check if quantity became zero, then delete the record
+            if (updatedRows > 0) {
+                ps = conn.prepareStatement("SELECT quantity FROM Cart WHERE productID = ? AND accountID = ? AND sizeID = ?");
+                ps.setInt(1, productID);
+                ps.setInt(2, accountID);
+                ps.setInt(3, sizeID);
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next() && rs.getInt("quantity") == 0) {
+                    // If quantity is zero, delete the record
+                    ps = conn.prepareStatement(deleteQuery);
+                    ps.setInt(1, productID);
+                    ps.setInt(2, accountID);
+                    ps.setInt(3, sizeID);
+                    ps.executeUpdate();
+                }
+            }
+
+            conn.commit(); // Commit the transaction
+        } catch (Exception ex) {
+        }
+    }
+
+    public Boolean checkcartquantity(int productID, int accountID, int sizeID) {
+        String query = "SELECT "
+                + "    c.[quantity] AS 'CustomerQuantity', "
+                + "    s.[quantity] AS 'TotalQuantity' "
+                + "FROM "
+                + "    [Cart] c "
+                + "JOIN "
+                + "    [SizeDetail] s ON c.[productID] = s.[pID] AND c.[sizeID] = s.[sizeID] "
+                + "WHERE "
+                + "    c.[productID] = ? "
+                + "    AND c.[accountID] = ? "
+                + "    AND c.[sizeID] = ?";
+
+        try {
+            conn = new DBContext().getConnection(); //mo ket noi toi sql
+            ps = conn.prepareStatement(query);
+            ps.setInt(1, productID);
+            ps.setInt(2, accountID);
+            ps.setInt(3, sizeID);
+
+            try ( ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int customerQuantity = rs.getInt("CustomerQuantity");
+                    int totalQuantity = rs.getInt("TotalQuantity");
+                    // Kiểm tra nếu số lượng khách hàng nhập lớn hơn tổng số lượng
+                    return customerQuantity >= totalQuantity;
+                }
+            }
+            return rs.next();
+        } catch (Exception e) {
+            e.printStackTrace();  // Log or handle the exception as appropriate
+        }
+
+        return false;
+    }
+
+    public SizeDetail getProductSizesByProductIDAndSizeValue(int productID, int sizeValue) {
+        String query = "SELECT sd.*, s.sizevalue\n"
+                + "FROM SizeDetail sd\n"
+                + "JOIN Size s ON sd.sizeID = s.sizeID\n"
+                + "WHERE sd.pID = ? AND s.sizevalue = ?";
+        try ( Connection conn = new DBContext().getConnection();  PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, productID);
+            ps.setInt(2, sizeValue);
+            try ( ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int pID = rs.getInt("pID");
+                    int sizeID = rs.getInt("sizeID");
+                    int quantity = rs.getInt("quantity");
+                    int sizeValues = rs.getInt("sizevalue");
+                    SizeDetail size = new SizeDetail(sizeID, pID, quantity, sizeValues);
+                    return size;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     //------------------------------------------------------------------------------------------------

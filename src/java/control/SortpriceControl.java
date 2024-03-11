@@ -58,7 +58,7 @@ public class SortpriceControl extends HttpServlet {
             int pageIndex = (request.getParameter("pageIndex") != null) ? Integer.parseInt(request.getParameter("pageIndex")) : 1;
 
             if (showAllProducts) {
-// nếu dúng thì ok
+
                 List<Product> allProducts = dao.getAllProduct();
                 int numberProductPerPage = (request.getParameter("numberProductPerPage") != null) ? Integer.parseInt(request.getParameter("numberProductPerPage")) : 10;
                 int pageSize = dao.getPageSize(numberProductPerPage, allProducts.size());
